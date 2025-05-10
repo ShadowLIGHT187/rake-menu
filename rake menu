@@ -609,3 +609,381 @@ end
         
     end
 })
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+
+local ESPFolder = Instance.new("Folder", game.CoreGui)
+ESPFolder.Name = "CustomESP"
+
+local MAX_DISTANCE = 1000
+
+-- Colors
+local PLAYER_COLOR = Color3.fromRGB(0, 255, 0)
+local RAKE_COLOR = Color3.fromRGB(255, 0, 0)
+local SCRAP_COLOR = Color3.fromRGB(0, 150, 255)
+local FLARE_COLOR = Color3.fromRGB(255, 255, 0)
+local CRATE_COLOR = Color3.fromHSV(tick() * 5 % 1, 1, 1) -- RGB cycling for crates
+
+-- Infinite Stamina
+local infiniteStaminaEnabled = false
+local staminaKey = "Stamina" -- Modify if your game uses a different key for stamina.
+
+local function enableInfiniteStamina()
+    local player = game.Players.LocalPlayer
+    local character = player.Character or player.CharacterAdded:Wait()
+    local humanoid = character:WaitForChild("Humanoid")
+    local stamina = character:FindFirstChild(staminaKey)
+
+    -- Ensure the stamina value exists and set infinite stamina logic.
+    if stamina then
+        game:GetService("RunService").Heartbeat:Connect(function()
+            if infiniteStaminaEnabled then
+                stamina.Value = stamina.MaximumValue
+            end
+        end)
+    end
+end
+
+-- Toggle infinite stamina (press X to enable/disable).
+UserInputService.InputBegan:Connect(function(input)
+    if input.KeyCode == Enum.KeyCode.X then
+        infiniteStaminaEnabled = not infiniteStaminaEnabled
+        if infiniteStaminaEnabled then
+            print("Infinite Stamina Enabled")
+            enableInfiniteStamina()
+        else
+            print("Infinite Stamina Disabled")
+        end
+    end
+end)
+
+-- Utility for creating ESP
+local function createDrawing(type, props)
+    local drawing = Drawing.new(type)
+    for k, v in pairs(props) do
+        drawing[k] = v
+    end
+    return drawing
+end
+
+local ESPObjects = {}
+
+local function removeESP(key)
+    if ESPObjects[key] then
+        for _, obj in pairs(ESPObjects[key]) do
+            obj:Remove()
+        end
+        ESPObjects[key] = nil
+    end
+end
+
+-- RGB cycle for crates
+local function rainbowColor()
+    local t = tick() * 5
+    return Color3.fromHSV(t % 1, 1, 1)
+end
+
+RunService.RenderStepped:Connect(function()
+    local screenCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
+    local lpChar = LocalPlayer.Character
+    if not lpChar or not lpChar:FindFirstChild("HumanoidRootPart") then return end
+    local lpPos = lpChar.HumanoidRootPart.Position
+
+    for _, esp in pairs(ESPObjects) do
+        for _, obj in pairs(esp) do
+            obj.Visible = false
+        end
+    end
+
+    -- Player ESP
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            local part = player.Character.HumanoidRootPart
+            if (lpPos - part.Position).Magnitude <= MAX_DISTANCE then
+                local screenPos, visible = Camera:WorldToViewportPoint(part.Position)
+                local distance = math.floor((lpPos - part.Position).Magnitude)
+                if visible then
+                    local id = "PLAYER_" .. player.Name
+                    if not ESPObjects[id] then
+                        ESPObjects[id] = {
+                            Name = createDrawing("Text", {Color = PLAYER_COLOR, Size = 13, Center = true, Outline = true, Font = 2}),
+                            Line = createDrawing("Line", {Color = PLAYER_COLOR, Thickness = 1}),
+                            Distance = createDrawing("Text", {Color = Color3.fromRGB(255, 255, 255), Size = 12, Center = true, Font = 2})
+                        }
+                    end
+                    ESPObjects[id].Name.Position = Vector2.new(screenPos.X, screenPos.Y - 15)
+                    ESPObjects[id].Name.Text = player.Name
+                    ESPObjects[id].Name.Visible = true
+                    ESPObjects[id].Line.From = screenCenter
+                    ESPObjects[id].Line.To = Vector2.new(screenPos.X, screenPos.Y)
+                    ESPObjects[id].Line.Visible = true
+                    ESPObjects[id].Distance.Position = Vector2.new(screenPos.X, screenPos.Y + 10)
+                    ESPObjects[id].Distance.Text = distance .. "m"
+                    ESPObjects[id].Distance.Visible = true
+                end
+            end
+        end
+    end
+
+    -- Rake ESP
+    for _, obj in pairs(workspace:GetDescendants()) do
+        local name = obj.Name:lower()
+        if name:find("rake") and obj:FindFirstChild("HumanoidRootPart") then
+            local part = obj.HumanoidRootPart
+            if (lpPos - part.Position).Magnitude <= MAX_DISTANCE then
+                local screenPos, visible = Camera:WorldToViewportPoint(part.Position)
+                local distance = math.floor((lpPos - part.Position).Magnitude)
+                if visible then
+                    local id = "RAKE"
+                    if not ESPObjects[id] then
+                        ESPObjects[id] = {
+                            Name = createDrawing("Text", {Color = RAKE_COLOR, Size = 14, Center = true, Outline = true, Font = 2}),
+                            Line = createDrawing("Line", {Color = RAKE_COLOR, Thickness = 2}),
+                            Distance = createDrawing("Text", {Color = Color3.fromRGB(255, 255, 255), Size = 12, Center = true, Font = 2})
+                        }
+                    end
+                    ESPObjects[id].Name.Position = Vector2.new(screenPos.X, screenPos.Y - 15)
+                    ESPObjects[id].Name.Text = "RAKE"
+                    ESPObjects[id].Name.Visible = true
+                    ESPObjects[id].Line.From = screenCenter
+                    ESPObjects[id].Line.To = Vector2.new(screenPos.X, screenPos.Y)
+                    ESPObjects[id].Line.Visible = true
+                    ESPObjects[id].Distance.Position = Vector2.new(screenPos.X, screenPos.Y + 10)
+                    ESPObjects[id].Distance.Text = distance .. "m"
+                    ESPObjects[id].Distance.Visible = true
+                end
+            end
+        end
+    end
+
+    -- Scrap ESP
+    for _, scrap in ipairs(workspace:GetDescendants()) do
+        if scrap:IsA("BasePart") and scrap.Name:lower():find("scrap") then
+            if (lpPos - scrap.Position).Magnitude <= MAX_DISTANCE then
+                local screenPos, visible = Camera:WorldToViewportPoint(scrap.Position)
+                local distance = math.floor((lpPos - scrap.Position).Magnitude)
+                if visible then
+                    local id = "SCRAP_" .. scrap:GetDebugId()
+                    if not ESPObjects[id] then
+                        ESPObjects[id] = {
+                            Name = createDrawing("Text", {Color = SCRAP_COLOR, Size = 12, Center = true, Outline = true, Font = 2}),
+                            Line = createDrawing("Line", {Color = SCRAP_COLOR, Thickness = 1}),
+                            Distance = createDrawing("Text", {Color = Color3.fromRGB(255, 255, 255), Size = 12, Center = true, Font = 2})
+                        }
+                    end
+                    ESPObjects[id].Name.Position = Vector2.new(screenPos.X, screenPos.Y - 10)
+                    ESPObjects[id].Name.Text = "Scrap"
+                    ESPObjects[id].Name.Visible = true
+                    ESPObjects[id].Line.From = screenCenter
+                    ESPObjects[id].Line.To = Vector2.new(screenPos.X, screenPos.Y)
+                    ESPObjects[id].Line.Visible = true
+                    ESPObjects[id].Distance.Position = Vector2.new(screenPos.X, screenPos.Y + 10)
+                    ESPObjects[id].Distance.Text = distance .. "m"
+                    ESPObjects[id].Distance.Visible = true
+                end
+            end
+        end
+    end
+
+    -- Flare Gun ESP
+    for _, item in ipairs(workspace:GetDescendants()) do
+        if item:IsA("BasePart") and item.Name:lower():find("flare") then
+            if (lpPos - item.Position).Magnitude <= MAX_DISTANCE then
+                local screenPos, visible = Camera:WorldToViewportPoint(item.Position)
+                local distance = math.floor((lpPos - item.Position).Magnitude)
+                if visible then
+                    local id = "FLARE_" .. item:GetDebugId()
+                    if not ESPObjects[id] then
+                        ESPObjects[id] = {
+                            Name = createDrawing("Text", {Color = FLARE_COLOR, Size = 12, Center = true, Outline = true, Font = 2}),
+                            Line = createDrawing("Line", {Color = FLARE_COLOR, Thickness = 1}),
+                            Distance = createDrawing("Text", {Color = Color3.fromRGB(255, 255, 255), Size = 12, Center = true, Font = 2})
+                        }
+                    end
+                    ESPObjects[id].Name.Position = Vector2.new(screenPos.X, screenPos.Y - 10)
+                    ESPObjects[id].Name.Text = "Flare Gun"
+                    ESPObjects[id].Name.Visible = true
+                    ESPObjects[id].Line.From = screenCenter
+                    ESPObjects[id].Line.To = Vector2.new(screenPos.X, screenPos.Y)
+                    ESPObjects[id].Line.Visible = true
+                    ESPObjects[id].Distance.Position = Vector2.new(screenPos.X, screenPos.Y + 10)
+                    ESPObjects[id].Distance.Text = distance .. "m"
+                    ESPObjects[id].Distance.Visible = true
+                end
+            end
+        end
+    end
+
+    -- Crate ESP (RGB)
+    for _, crate in ipairs(workspace:GetDescendants()) do
+        if crate:IsA("BasePart") and crate.Name:lower():find("crate") then
+            if (lpPos - crate.Position).Magnitude <= MAX_DISTANCE then
+                local screenPos, visible = Camera:WorldToViewportPoint(crate.Position)
+                local distance = math.floor((lpPos - crate.Position).Magnitude)
+                if visible then
+                    local id = "CRATE_" .. crate:GetDebugId()
+                    if not ESPObjects[id] then
+                        ESPObjects[id] = {
+                            Name = createDrawing("Text", {Size = 12, Center = true, Outline = true, Font = 2}),
+                            Line = createDrawing("Line", {Thickness = 1}),
+                            Distance = createDrawing("Text", {Color = Color3.fromRGB(255, 255, 255), Size = 12, Center = true, Font = 2})
+                        }
+                    end
+                    local color = rainbowColor()
+                    ESPObjects[id].Name.Color = color
+                    ESPObjects[id].Line.Color = color
+                    ESPObjects[id].Name.Position = Vector2.new(screenPos.X, screenPos.Y - 10)
+                    ESPObjects[id].Name.Text = "Crate"
+                    ESPObjects[id].Name.Visible = true
+                    ESPObjects[id].Line.From = screenCenter
+                    ESPObjects[id].Line.To = Vector2.new(screenPos.X, screenPos.Y)
+                    ESPObjects[id].Line.Visible = true
+                    ESPObjects[id].Distance.Position = Vector2.new(screenPos.X, screenPos.Y + 10)
+                    ESPObjects[id].Distance.Text = distance .. "m"
+                    ESPObjects[id].Distance.Visible = true
+                end
+            end
+        end
+    end
+end)
+
+-- Display 'MADE BY SHADOWLIGHT' in the top left corner
+local title = createDrawing("Text", {
+    Text = "MADE BY SHADOWLIGHT",
+    Position = Vector2.new(10, 10),
+    Color = Color3.fromRGB(255, 255, 255),
+    Size = 16,
+    Font = 2,
+    Outline = true
+})
+
+-- Display the player's coordinates in the top left corner
+local coordsText = createDrawing("Text", {
+    Text = "Coordinates: 0, 0, 0",  -- Placeholder text, will update with actual coordinates
+    Position = Vector2.new(10, 30),  -- Positioning the coordinates below the title
+    Color = Color3.fromRGB(255, 255, 255),
+    Size = 14,
+    Font = 2,
+    Outline = true
+})
+
+-- Update coordinates in real-time
+RunService.RenderStepped:Connect(function()
+    local lpChar = LocalPlayer.Character
+    if lpChar and lpChar:FindFirstChild("HumanoidRootPart") then
+        local pos = lpChar.HumanoidRootPart.Position
+        coordsText.Text = string.format("Coordinates: %.2f, %.2f, %.2f", pos.X, pos.Y, pos.Z)
+    end
+end)
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+
+local ESPFolder = Instance.new("Folder", game.CoreGui)
+ESPFolder.Name = "CustomESP"
+
+local MAX_DISTANCE = 1000
+
+-- Colors
+local PLAYER_COLOR = Color3.fromRGB(0, 255, 0)
+local RAKE_COLOR = Color3.fromRGB(255, 0, 0)
+local SCRAP_COLOR = Color3.fromRGB(0, 150, 255)
+local FLARE_COLOR = Color3.fromRGB(255, 255, 0)
+local CRATE_COLOR = Color3.fromHSV(tick() * 5 % 1, 1, 1) -- RGB cycling for crates
+
+-- Locations
+local locations = {
+    ["Power Station"] = Vector3.new(-281.63, 20.00, -211.49),
+    ["Safe House"] = Vector3.new(-365.18, 15.60, 64.76),
+    ["Base Camp"] = Vector3.new(-37.10, 17.61, 198.19),
+    ["Observation Tower"] = Vector3.new(49.10, 57.82, -51.60),
+    ["Shop"] = Vector3.new(-24.91, 16.91, -257.03),
+}
+
+-- Utility for creating ESP
+local function createDrawing(type, props)
+    local drawing = Drawing.new(type)
+    for k, v in pairs(props) do
+        drawing[k] = v
+    end
+    return drawing
+end
+
+local ESPObjects = {}
+
+local function removeESP(key)
+    if ESPObjects[key] then
+        for _, obj in pairs(ESPObjects[key]) do
+            obj:Remove()
+        end
+        ESPObjects[key] = nil
+    end
+end
+
+-- Update ESP for each location
+RunService.RenderStepped:Connect(function()
+    local screenCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
+    local lpChar = LocalPlayer.Character
+    if not lpChar or not lpChar:FindFirstChild("HumanoidRootPart") then return end
+    local lpPos = lpChar.HumanoidRootPart.Position
+
+    for _, esp in pairs(ESPObjects) do
+        for _, obj in pairs(esp) do
+            obj.Visible = false
+        end
+    end
+
+    -- Location ESP
+    for locationName, locationPos in pairs(locations) do
+        if (lpPos - locationPos).Magnitude <= MAX_DISTANCE then
+            local screenPos, visible = Camera:WorldToViewportPoint(locationPos)
+            local distance = math.floor((lpPos - locationPos).Magnitude)
+            if visible then
+                local id = "LOCATION_" .. locationName
+                if not ESPObjects[id] then
+                    ESPObjects[id] = {
+                        Name = createDrawing("Text", {Color = Color3.fromRGB(255, 255, 255), Size = 13, Center = true, Outline = true, Font = 2}),
+                        Line = createDrawing("Line", {Color = Color3.fromRGB(255, 255, 255), Thickness = 1}),
+                        Distance = createDrawing("Text", {Color = Color3.fromRGB(255, 255, 255), Size = 12, Center = true, Font = 2})
+                    }
+                end
+                ESPObjects[id].Name.Position = Vector2.new(screenPos.X, screenPos.Y - 15)
+                ESPObjects[id].Name.Text = locationName
+                ESPObjects[id].Name.Visible = true
+                ESPObjects[id].Line.From = screenCenter
+                ESPObjects[id].Line.To = Vector2.new(screenPos.X, screenPos.Y)
+                ESPObjects[id].Line.Visible = true
+                ESPObjects[id].Distance.Position = Vector2.new(screenPos.X, screenPos.Y + 10)
+                ESPObjects[id].Distance.Text = distance .. "m"
+                ESPObjects[id].Distance.Visible = true
+            end
+        end
+    end
+end)
+
+
+-- Display the player's coordinates in the top left corner
+local coordsText = createDrawing("Text", {
+    Text = "Coordinates: 0, 0, 0",  -- Placeholder text, will update with actual coordinates
+    Position = Vector2.new(10, 30),  -- Positioning the coordinates below the title
+    Color = Color3.fromRGB(255, 255, 255),
+    Size = 14,
+    Font = 2,
+    Outline = true
+})
+
+-- Update coordinates in real-time
+RunService.RenderStepped:Connect(function()
+    local lpChar = LocalPlayer.Character
+    if lpChar and lpChar:FindFirstChild("HumanoidRootPart") then
+        local pos = lpChar.HumanoidRootPart.Position
+        coordsText.Text = string.format("Coordinates: %.2f, %.2f, %.2f", pos.X, pos.Y, pos.Z)
+    end
+end)
