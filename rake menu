@@ -1,9 +1,9 @@
 ocal Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 local Window = Rayfield:CreateWindow({
-    Name = "Toddy's hub v2",
+    Name = "SHADOWS v2",
     Icon = 0,
     LoadingTitle = "Back for more lol - Updated 02/19/2025 (19/02/2025)",
-    LoadingSubtitle = "by mushroom0162",
+    LoadingSubtitle = "by shadowLIGHT",
     Theme = "Default",
     DisableRayfieldPrompts = false,
     DisableBuildWarnings = false,
