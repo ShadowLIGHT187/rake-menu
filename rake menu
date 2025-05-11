@@ -989,3 +989,54 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+
+local noclip = false
+
+-- Toggle key
+game:GetService("UserInputService").InputBegan:Connect(function(input, gpe)
+    if gpe then return end
+    if input.KeyCode == Enum.KeyCode.N then
+        noclip = not noclip
+    end
+end)
+
+-- Noclip loop
+RunService.Stepped:Connect(function()
+    if noclip then
+        local char = player.Character
+        if char then
+            for _, part in pairs(char:GetDescendants()) do
+                if part:IsA("BasePart") and part.CanCollide == true then
+                    part.CanCollide = false
+                end
+            end
+        end
+    end
+end)
+
+local UserInputService = game:GetService("UserInputService")
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+local mouse = player:GetMouse()
+
+-- Teleport function
+local function teleportToMouse()
+    local character = player.Character
+    if not character or not character:FindFirstChild("HumanoidRootPart") then return end
+
+    local target = mouse.Hit.Position
+    character:MoveTo(target + Vector3.new(0, 3, 0)) -- Slightly above to avoid clipping
+end
+
+-- Bind to T key
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if input.KeyCode == Enum.KeyCode.T then
+        teleportToMouse()
+    end
+end)
