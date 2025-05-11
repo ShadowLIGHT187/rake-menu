@@ -898,13 +898,14 @@ local SCRAP_COLOR = Color3.fromRGB(0, 150, 255)
 local FLARE_COLOR = Color3.fromRGB(255, 255, 0)
 local CRATE_COLOR = Color3.fromHSV(tick() * 5 % 1, 1, 1) -- RGB cycling for crates
 
--- Locations
+-- Add this to your locations table
 local locations = {
     ["Power Station"] = Vector3.new(-281.63, 20.00, -211.49),
     ["Safe House"] = Vector3.new(-365.18, 15.60, 64.76),
     ["Base Camp"] = Vector3.new(-37.10, 17.61, 198.19),
     ["Observation Tower"] = Vector3.new(49.10, 57.82, -51.60),
     ["Shop"] = Vector3.new(-24.91, 16.91, -257.03),
+    ["Shitty Ass Shack"] = Vector3.new(-288.81, 17.97, -322.44), -- ← added shack here
 }
 
 -- Utility for creating ESP
@@ -988,59 +989,3 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
---// Shitty Ass Shack Location ESP for The Rake: Remastered
-local shakPosition = Vector3.new(-288.81, 17.97, -322.44)
-
-local RunService = game:GetService("RunService")
-local Players = game:GetService("Players")
-local camera = workspace.CurrentCamera
-local localPlayer = Players.LocalPlayer
-local character = localPlayer.Character or localPlayer.CharacterAdded:Wait()
-local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
-
--- Drawing objects
-local shakLine = Drawing.new("Line")
-shakLine.Color = Color3.fromRGB(255, 255, 255) -- White
-shakLine.Thickness = 1
-shakLine.Visible = true
-
-local shakName = Drawing.new("Text")
-shakName.Color = Color3.fromRGB(255, 255, 255)
-shakName.Size = 14
-shakName.Center = true
-shakName.Outline = true
-shakName.Visible = true
-
-local shakDistance = Drawing.new("Text")
-shakDistance.Color = Color3.fromRGB(255, 255, 255)
-shakDistance.Size = 13
-shakDistance.Center = true
-shakDistance.Outline = true
-shakDistance.Visible = true
-
--- Update loop
-RunService.RenderStepped:Connect(function()
-    if not character or not character:FindFirstChild("HumanoidRootPart") then return end
-
-    local playerPos = humanoidRootPart.Position
-    local distance = (playerPos - shakPosition).Magnitude
-    local screenPos, onScreen = camera:WorldToViewportPoint(shakPosition)
-
-    if onScreen then
-        shakLine.From = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y)
-        shakLine.To = Vector2.new(screenPos.X, screenPos.Y)
-        shakLine.Visible = true
-
-        shakName.Position = Vector2.new(screenPos.X, screenPos.Y - 16)
-        shakName.Text = "Shitty Ass Shack"
-        shakName.Visible = true
-
-        shakDistance.Position = Vector2.new(screenPos.X, screenPos.Y)
-        shakDistance.Text = string.format("%dm", math.floor(distance))
-        shakDistance.Visible = true
-    else
-        shakLine.Visible = false
-        shakName.Visible = false
-        shakDistance.Visible = false
-    end
-end)
