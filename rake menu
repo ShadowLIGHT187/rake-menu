@@ -987,3 +987,60 @@ RunService.RenderStepped:Connect(function()
         coordsText.Text = string.format("Coordinates: %.2f, %.2f, %.2f", pos.X, pos.Y, pos.Z)
     end
 end)
+
+--// Shitty Ass Shack Location ESP for The Rake: Remastered
+local shakPosition = Vector3.new(-288.81, 17.97, -322.44)
+
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+local camera = workspace.CurrentCamera
+local localPlayer = Players.LocalPlayer
+local character = localPlayer.Character or localPlayer.CharacterAdded:Wait()
+local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+
+-- Drawing objects
+local shakLine = Drawing.new("Line")
+shakLine.Color = Color3.fromRGB(255, 255, 255) -- White
+shakLine.Thickness = 1
+shakLine.Visible = true
+
+local shakName = Drawing.new("Text")
+shakName.Color = Color3.fromRGB(255, 255, 255)
+shakName.Size = 14
+shakName.Center = true
+shakName.Outline = true
+shakName.Visible = true
+
+local shakDistance = Drawing.new("Text")
+shakDistance.Color = Color3.fromRGB(255, 255, 255)
+shakDistance.Size = 13
+shakDistance.Center = true
+shakDistance.Outline = true
+shakDistance.Visible = true
+
+-- Update loop
+RunService.RenderStepped:Connect(function()
+    if not character or not character:FindFirstChild("HumanoidRootPart") then return end
+
+    local playerPos = humanoidRootPart.Position
+    local distance = (playerPos - shakPosition).Magnitude
+    local screenPos, onScreen = camera:WorldToViewportPoint(shakPosition)
+
+    if onScreen then
+        shakLine.From = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y)
+        shakLine.To = Vector2.new(screenPos.X, screenPos.Y)
+        shakLine.Visible = true
+
+        shakName.Position = Vector2.new(screenPos.X, screenPos.Y - 16)
+        shakName.Text = "Shitty Ass Shack"
+        shakName.Visible = true
+
+        shakDistance.Position = Vector2.new(screenPos.X, screenPos.Y)
+        shakDistance.Text = string.format("%dm", math.floor(distance))
+        shakDistance.Visible = true
+    else
+        shakLine.Visible = false
+        shakName.Visible = false
+        shakDistance.Visible = false
+    end
+end)
